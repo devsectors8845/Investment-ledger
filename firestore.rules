@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// Every write to users / plans / auditLog goes through /api (Admin SDK, which
+// bypasses these rules). The browser only ever reads.
+// Full rules are finalised on Day 6 — see docs/ARCHITECTURE.md §7.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isSuperAdmin() {
+      return signedIn() && me().role == 'superadmin' && me().status == 'active';
+    }
+
+    match /users/{uid} {
+      // own profile while active (needed for login + role routing); super admin reads all.
+      // A blocked/deleted user is denied even with a not-yet-expired ID token.
+      allow read: if signedIn()
+        && ((request.auth.uid == uid && resource.data.status == 'active') || isSuperAdmin());
+      allow write: if false;
+    }
+
+    match /plans/{adminId} {
+      allow read: if signedIn()
+        && ((request.auth.uid == adminId && me().status == 'active') || isSuperAdmin());
+      allow write: if false;
+    }
+
+    match /auditLog/{id} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

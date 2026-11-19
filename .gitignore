@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.vercel/
+
+# env — only .env.example is committed
+.env
+.env.*
+!.env.example
+
+# Firebase service-account keys
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+
+.DS_Store
+*.log
+.claude/settings.local.json
